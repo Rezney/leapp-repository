@@ -2,7 +2,7 @@ from leapp.libraries.actor.library import (MIN_AVAIL_BYTES_FOR_BOOT,
                                            check_avail_space_on_boot,
                                            inhibit_upgrade)
 from leapp.libraries.stdlib import api
-from leapp.models import Inhibitor
+from leapp.models import Report
 
 
 class produce_mocked(object):
@@ -53,6 +53,6 @@ def test_inhibit_upgrade(monkeypatch):
     inhibit_upgrade(bytes_available)
 
     assert api.produce.called == 1
-    assert type(api.produce.model_instances[0]) is Inhibitor
+    assert 'inhibitor' in api.produce.model_instances[0].flags
     mib_needed = (MIN_AVAIL_BYTES_FOR_BOOT - bytes_available) / 2**20
-    assert "needs additional {0} MiB".format(mib_needed) in api.produce.model_instances[0].details
+    assert "needs additional {0} MiB".format(mib_needed) in api.produce.model_instances[0].summary

@@ -2,7 +2,7 @@ import json
 
 from leapp.actors import Actor
 from leapp.models import RpmTransactionTasks, InstalledRedHatSignedRPM
-from leapp.tags import IPUWorkflowTag, FactsPhaseTag, ExperimentalTag
+from leapp.tags import IPUWorkflowTag, FactsPhaseTag
 
 
 EVENTS = ('Present', 'Removed', 'Deprecated', 'Replaced', 'Split', 'Merged', 'Moved', 'Renamed')

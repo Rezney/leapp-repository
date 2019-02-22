@@ -1,5 +1,5 @@
 from leapp.actors import Actor
-from leapp.models import Inhibitor, PCIDevices
+from leapp.models import Report, PCIDevices
 from leapp.tags import ChecksPhaseTag, IPUWorkflowTag
 
 
@@ -25,16 +25,16 @@ class CheckPCIDevices(Actor):
 
     name = 'check_pci_devices'
     consumes = (PCIDevices,)
-    produces = (Inhibitor,)
+    produces = (Report,)
     tags = (IPUWorkflowTag, ChecksPhaseTag)
 
     def process(self):
         for data in self.consume(PCIDevices):
             for device in data.devices:
                 if 'SCSI' in device.dev_cls and 'LSI Logic' in device.vendor:
-                    self.produce(Inhibitor(
-                        summary='LSI Logic SCSI Controller is not supported',
-                        details='Kernel driver necessary for LSI Logic SCSI Controller (mpt*) '
+                    report_generic(
+                        title='LSI Logic SCSI Controller is not supported',
+                        summary='Kernel driver necessary for LSI Logic SCSI Controller (mpt*) '
                                 'is not available in Red Hat Enterprise Linux 8. Since this '
                                 'would prevent controller from working properly upgrade process '
                                 'will be inhibited.',

@@ -2,7 +2,8 @@ import sys
 
 from leapp.actors import Actor
 from leapp.tags import FinalizationPhaseTag, IPUWorkflowTag
-from leapp.models import SelinuxRelabelDecision, FinalReport
+from leapp.models import SelinuxRelabelDecision, Report
+from leapp.reporting import report_generic
 
 
 class ScheduleSeLinuxRelabeling(Actor):
@@ -14,7 +15,7 @@ class ScheduleSeLinuxRelabeling(Actor):
 
     name = 'schedule_se_linux_relabelling'
     consumes = (SelinuxRelabelDecision,)
-    produces = (FinalReport,)
+    produces = ()
     tags = (FinalizationPhaseTag, IPUWorkflowTag)
 
     def process(self):
@@ -24,9 +25,4 @@ class ScheduleSeLinuxRelabeling(Actor):
                     with open('/.autorelabel', 'w'):
                         pass
                 except OSError as e:
-                    self.produce(FinalReport(
-                        severity='Error',
-                        result='Fail',
-                        summary='Could not schedule SElinux for relabelling',
-                        details=e,))
                     self.log.critical('Could not schedule SElinux for relabelling: %s' % e)

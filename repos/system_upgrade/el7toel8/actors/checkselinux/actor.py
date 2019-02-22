@@ -1,6 +1,6 @@
 from leapp.actors import Actor
 from leapp.tags import ChecksPhaseTag, IPUWorkflowTag
-from leapp.models import SELinuxFacts, CheckResult, SelinuxPermissiveDecision, SelinuxRelabelDecision
+from leapp.models import SELinuxFacts, Report, SelinuxPermissiveDecision, SelinuxRelabelDecision
 
 
 class CheckSelinux(Actor):
@@ -13,7 +13,7 @@ class CheckSelinux(Actor):
 
     name = 'check_se_linux'
     consumes = (SELinuxFacts,)
-    produces = (CheckResult, SelinuxPermissiveDecision, SelinuxRelabelDecision)
+    produces = (Report, SelinuxPermissiveDecision, SelinuxRelabelDecision)
     tags = (ChecksPhaseTag, IPUWorkflowTag)
 
     def produce_info(self, result, summary, details, solution=None):
@@ -28,6 +28,8 @@ class CheckSelinux(Actor):
         for fact in self.consume(SELinuxFacts):
             enabled = fact.enabled
             conf_status = fact.static_mode
+        else:
+            return
 
         if conf_status == 'disabled':
             if enabled:
