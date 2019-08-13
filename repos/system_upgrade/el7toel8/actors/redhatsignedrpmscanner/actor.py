@@ -1,3 +1,5 @@
+import os
+
 from leapp.actors import Actor
 from leapp.models import InstalledRedHatSignedRPM, InstalledUnsignedRPM, InstalledRPM
 from leapp.tags import IPUWorkflowTag, FactsPhaseTag
@@ -28,9 +30,11 @@ class RedHatSignedRpmScanner(Actor):
 
         for rpm_pkgs in self.consume(InstalledRPM):
             for pkg in rpm_pkgs.items:
+                unsigned_env = os.getenv('LEAPP_DEVEL_ACCEPT_UNSIGNED_PKGS', '0') == '1'
+                accept_unsigned = bool(int(unsigned_env))
                 # "gpg-pubkey" is not signed as it would require another package to verify its signature
                 if any(key in pkg.pgpsig for key in RH_SIGS) or \
-                        (pkg.name == 'gpg-pubkey' and pkg.packager.startswith('Red Hat, Inc.')):
+                        (pkg.name == 'gpg-pubkey' and pkg.packager.startswith('Red Hat, Inc.') or accept_unsigned):
                     signed_pkgs.items.append(pkg)
                     continue
 

@@ -1,19 +1,7 @@
-import os
-
-from leapp.exceptions import StopActorExecution
 from leapp.libraries.common import reporting
 from leapp.libraries.stdlib import api
 from leapp.libraries.stdlib.config import is_verbose
 from leapp.models import InstalledUnsignedRPM
-
-
-def skip_check():
-    """ Check if has environment variable to skip this actor checks """
-    if os.getenv('LEAPP_SKIP_CHECK_SIGNED_PACKAGES'):
-        reporting.report_generic(title='Skipped signed packages check',
-                                 severity='low',
-                                 summary='Signed packages check skipped via LEAPP_SKIP_CHECK_SIGNED_PACKAGES env var')
-        raise StopActorExecution()
 
 
 def generate_report(packages):

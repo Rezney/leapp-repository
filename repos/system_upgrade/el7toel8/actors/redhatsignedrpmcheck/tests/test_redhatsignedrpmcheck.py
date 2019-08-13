@@ -12,23 +12,6 @@ from leapp.models import RPM, InstalledUnsignedRPM
 RH_PACKAGER = 'Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla>'
 
 
-def test_skip_check(monkeypatch):
-    monkeypatch.setattr(os, "getenv", lambda _unused: True)
-    monkeypatch.setattr(reporting, "report_generic", report_generic_mocked())
-    with pytest.raises(StopActorExecution):
-        library.skip_check()
-    assert reporting.report_generic.called == 1
-    assert 'Skipped signed packages check' in reporting.report_generic.report_fields['title']
-
-
-def test_no_skip_check(monkeypatch):
-    monkeypatch.setattr(os, "getenv", lambda(_): False)
-    monkeypatch.setattr(reporting, "report_generic", report_generic_mocked())
-
-    library.skip_check()
-    assert reporting.report_generic.called == 0
-
-
 def test_actor_execution_without_unsigned_data(monkeypatch):
     def consume_unsigned_message_mocked(*models):
         installed_rpm = []
