@@ -1,10 +1,18 @@
 import contextlib
 import os
 import shutil
+from collections import namedtuple
 
 from leapp.exceptions import StopActorExecutionError
 from leapp.libraries.common import mounting, utils
 from leapp.libraries.stdlib import CalledProcessError, api, run
+
+
+OVERLAY_UNSUPPORTED = ('vfat',)
+OVERLAY_DO_NOT_MOUNT = ('tmpfs', 'devpts', 'sysfs', 'proc', 'cramfs', 'romfs', 'sysv')
+
+
+MountPoints = namedtuple('MountPoints', ['fs_file', 'fs_vfstype',])
 
 
 def _ensure_enough_diskimage_space(space_needed, directory):
@@ -17,7 +25,12 @@ def _ensure_enough_diskimage_space(space_needed, directory):
 
 
 def _get_mountpoints(storage_info):
-    return list(set([entry.fs_file for entry in storage_info.fstab if os.path.isdir(entry.fs_file)]))
+    mount_points = set()
+    for entry in storage_info.fstab:
+        if os.path.isdir(entry.fs_file) and entry.fs_vfstype not in OVERLAY_DO_NOT_MOUNT:
+            mount_points.add(MountPoints(entry.fs_file, entry.fs_vfstype))
+
+    return list(mount_points)
 
 
 def _mount_name(mountpoint):
@@ -29,11 +42,16 @@ def _mount_dir(mounts_dir, mountpoint):
 
 
 def _prepare_required_mounts(scratch_dir, mounts_dir, mount_points, xfs_info):
-    result = {mountpoint: mounting.NullMount(_mount_dir(mounts_dir, mountpoint)) for mountpoint in mount_points}
-    if not xfs_info.mountpoints_without_ftype:
+    result = {
+        mount_point.fs_file: mounting.NullMount(_mount_dir(mounts_dir, mount_point.fs_file)) for mount_point in mount_points
+    }
+    unsupported = [
+        mount_point.fs_file for mount_point in mount_points if mount_point.fs_vfstype in OVERLAY_UNSUPPORTED
+    ]
+    if not xfs_info.mountpoints_without_ftype and not unsupported:
         return result
 
-    space_needed = _overlay_disk_size() * len(xfs_info.mountpoints_without_ftype)
+    space_needed = _overlay_disk_size() * len(xfs_info.mountpoints_without_ftype + unsupported)
     disk_images_directory = os.path.join(scratch_dir, 'diskimages')
 
     # Ensure we cleanup old disk images before we check for space contraints.
@@ -41,17 +59,13 @@ def _prepare_required_mounts(scratch_dir, mounts_dir, mount_points, xfs_info):
     _create_diskimages_dir(scratch_dir, disk_images_directory)
     _ensure_enough_diskimage_space(space_needed, scratch_dir)
 
-    for mountpoint in xfs_info.mountpoints_without_ftype:
-        if mountpoint in mount_points:
+    mount_names = [mount_point.fs_file for mount_point in mount_points]
+
+    for mountpoint in xfs_info.mountpoints_without_ftype + unsupported:
+        if mountpoint in mount_names:
             image = _create_mount_disk_image(disk_images_directory, mountpoint)
             result[mountpoint] = mounting.LoopMount(source=image, target=_mount_dir(mounts_dir, mountpoint))
     return result
-
-
-def _overlay_if(condition, name, source, workdir):
-    if condition:
-        return mounting.OverlayMount(name=name, source=source, workdir=workdir)
-    return mounting.NullMount(target=source)
 
 
 @contextlib.contextmanager
@@ -64,8 +78,7 @@ def _build_overlay_mount(root_mount, mounts):
         current = mounts.keys()[0]
         current_mount = mounts.pop(current)
         name = _mount_name(current)
-        # We will not make an overlay over /boot/efi as it is vfat that does not support overlayfs
-        with _overlay_if(current != '/boot/efi', name=name, source=current, workdir=current_mount.target) as overlay:
+        with mounting.OverlayMount(name=name, source=current, workdir=current_mount.target) as overlay:
             with mounting.BindMount(source=overlay.target,
                                     target=os.path.join(root_mount.target, current.lstrip('/'))):
                 with _build_overlay_mount(root_mount, mounts) as mount:
