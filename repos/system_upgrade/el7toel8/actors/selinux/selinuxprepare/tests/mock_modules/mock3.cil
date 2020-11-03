@@ -1,3 +1,0 @@
-(type mock_type3_t)
-(typeattributeset domain (mock_type3_t))
-(allow mock_type_t file_type (file (getattr open read)))

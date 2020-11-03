@@ -81,6 +81,8 @@ class IsolationType(object):
                 'systemd-nspawn',
                 '--register=no',
                 '--quiet',
+                '--keep-unit',
+                '--capability=all',
                 '-D', self.target
             ] + binds + setenvs + cmd
 

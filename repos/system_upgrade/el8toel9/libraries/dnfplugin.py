@@ -9,7 +9,7 @@ from leapp.libraries.common import guards, mounting, overlaygen, rhsm, utils
 from leapp.libraries.stdlib import CalledProcessError, api, config
 
 DNF_PLUGIN_NAME = 'rhel_upgrade.py'
-DNF_PLUGIN_PATH = os.path.join('/lib/python3.6/site-packages/dnf-plugins', DNF_PLUGIN_NAME)
+DNF_PLUGIN_PATH = os.path.join('/lib/python3.9/site-packages/dnf-plugins', DNF_PLUGIN_NAME)
 DNF_PLUGIN_DATA_NAME = 'dnf-plugin-data.txt'
 DNF_PLUGIN_DATA_PATH = os.path.join('/var/lib/leapp', DNF_PLUGIN_DATA_NAME)
 DNF_PLUGIN_DATA_LOG_PATH = os.path.join('/var/log/leapp', DNF_PLUGIN_DATA_NAME)
@@ -50,7 +50,7 @@ def build_plugin_data(target_repoids, debug, test, tasks, on_aws):
             'disable_repos': True,
             'enable_repos': target_repoids,
             'gpgcheck': False,
-            'platform_id': 'platform:el8',
+            'platform_id': 'platform:el9',
             'releasever': api.current_actor().configuration.version.target,
             'installroot': '/installroot',
             'test_flag': test
@@ -114,7 +114,7 @@ def _transaction(context, stage, target_repoids, tasks, plugin_info, test=False,
     backup_config(context=context)
 
     # FIXME: rhsm
-    with guards.guarded_execution(guards.connection_guard(), guards.space_guard()):
+    with guards.guarded_execution(guards.space_guard()):
         cmd = [
             '/usr/bin/dnf',
             'rhel-upgrade',
@@ -195,10 +195,12 @@ def perform_transaction_install(target_userspace_info, storage_info, used_repos,
     # These bind mounts are performed by systemd-nspawn --bind parameters
     bind_mounts = [
         '/:/installroot',
-        '/sys:/installroot/sys',
+        # we are bindmounting host's "/sys" to the intermediate "/hostsys" in the upgrade initramdisk to avoid
+        # cgroups tree layout clash
+        '/hostsys:/installroot/sys',
         '/dev:/installroot/dev',
         '/proc:/installroot/proc',
-        '/run/udev:/installroot/run/udev'
+        '/run/udev:/installroot/run/udev',
     ]
     already_mounted = {entry.split(':')[0] for entry in bind_mounts}
     for entry in storage_info.fstab:
@@ -237,7 +239,6 @@ def perform_transaction_check(target_userspace_info, used_repos, tasks, xfs_info
         with overlaygen.create_source_overlay(mounts_dir=userspace_info.mounts, scratch_dir=userspace_info.scratch,
                                               xfs_info=xfs_info, storage_info=storage_info,
                                               mount_target=os.path.join(context.base_dir, 'installroot')) as overlay:
-            utils.apply_yum_workaround(overlay.nspawn())
             _transaction(
                 context=context, stage='check', target_repoids=target_repoids, plugin_info=plugin_info, tasks=tasks
             )
@@ -253,7 +254,6 @@ def perform_rpm_download(target_userspace_info, used_repos, tasks, xfs_info, sto
         with overlaygen.create_source_overlay(mounts_dir=userspace_info.mounts, scratch_dir=userspace_info.scratch,
                                               xfs_info=xfs_info, storage_info=storage_info,
                                               mount_target=os.path.join(context.base_dir, 'installroot')) as overlay:
-            utils.apply_yum_workaround(overlay.nspawn())
             _transaction(
                 context=context, stage='download', target_repoids=target_repoids, plugin_info=plugin_info, tasks=tasks,
                 test=True, on_aws=on_aws

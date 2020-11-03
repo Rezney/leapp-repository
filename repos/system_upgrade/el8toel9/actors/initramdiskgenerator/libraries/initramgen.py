@@ -113,7 +113,7 @@ def generate_initram_disk(context):
             arch=api.current_actor().configuration.architecture,
             files=' '.join(install_files),
             cmd=os.path.join('/', INITRAM_GEN_SCRIPT_NAME))
-    ])
+    ], env={'SYSTEMD_SECCOMP': '0'})
     copy_boot_files(context)
 
 
