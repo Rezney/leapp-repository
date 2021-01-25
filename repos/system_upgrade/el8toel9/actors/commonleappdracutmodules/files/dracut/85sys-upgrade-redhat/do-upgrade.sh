@@ -8,6 +8,8 @@ fi
 type getarg >/dev/null 2>&1 || . /lib/dracut-lib.sh
 
 export LEAPPBIN=/usr/bin/leapp
+export LEAPPHOME=/root/tmp_leapp_py39
+export LEAPP39_BIN=$LEAPPHOME/leapp3
 
 export NEWROOT=${NEWROOT:-"/sysroot"}
 
@@ -58,7 +60,7 @@ do_upgrade() {
         # all FSTAB partitions. As mount was working before, hopefully will
         # work now as well. Later this should be probably modified as we will
         # need to handle more stuff around storage at all.
-        /usr/bin/systemd-nspawn $NSPAWN_OPTS -D $NEWROOT /usr/bin/bash -c "mount -a; /usr/bin/python3 $LEAPPBIN upgrade --resume $args"
+        /usr/bin/systemd-nspawn $NSPAWN_OPTS -D $NEWROOT /usr/bin/bash -c "mount -a; /usr/bin/python3.9 $LEAPP39_BIN upgrade --resume $args"
         rv=$?
     fi
 
